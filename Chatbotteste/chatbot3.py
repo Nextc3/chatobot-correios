@@ -1,36 +1,45 @@
-import random
-from bs4.element import ResultSet
-#https://pypi.org/project/Consulta-Correios/
-#https://chatterbot.readthedocs.io/en/stable/
-#https://escoladeia.com.br/construindo-um-chatbot-em-10-minutos-no-python/
+'''
+INF032 - T05
+Caio Costa e Camila Marinho
+
+Referências e bibliotecas usadas:
+https://chatterbot.readthedocs.io/en/stable/
+https://escoladeia.com.br/construindo-um-chatbot-em-10-minutos-no-python/
+https://pypi.org/project/pyrastreio/
+https://pypi.org/project/Consulta-Correios/
+https://pypi.org/project/pycep-correios/
+https://medium.com/@lucaaslb/web-scraping-com-python-ada1f5e3f921
+'''
+
+import random, os
 from chatterbot import ChatBot
 from chatterbot.trainers import ListTrainer
 from chatterbot.trainers import ChatterBotCorpusTrainer
-#https://pypi.org/project/pyrastreio/
 from pyrastreio import correios
-#https://pypi.org/project/Consulta-Correios/
 import consulta_correios
 from requests.sessions import TooManyRedirects
-#https://pypi.org/project/pycep-correios/
 from pycep_correios import get_address_from_cep, WebService
-#https://medium.com/@lucaaslb/web-scraping-com-python-ada1f5e3f921
 from urllib.request import urlopen 
 from bs4 import BeautifulSoup
-
+from bs4.element import ResultSet
 
 def getPerguntas(html):
     return html.find_all("div", {"class": "accordion-titulo"})
+
 def getRespostas (html):
     return html.find_all("div", {"class": "panel"}) 
+
 def getPergunta (perguntas,i):
     return (perguntas[i].strong).text
+
 def getResposta (respostas,i):
     return (respostas[i].p).text
+
 def soPerguntas(perguntas):
     return [(i.strong).text for i in perguntas]
 
-
 def processarMenu(opcao, nome):
+    os.system('cls||clear')
     if (opcao == 1):
         consultaStatus(nome)
     elif (opcao == 2):
@@ -38,6 +47,8 @@ def processarMenu(opcao, nome):
     elif (opcao == 3):
         consultaReclamacao(nome)
     elif (opcao == 4):
+        consultaFrequentes()
+    elif (opcao == 5):
         iniciaChatbot(nome)
 
 def consultaStatus(nome):
@@ -51,26 +62,19 @@ def consultaStatus(nome):
 
 def consultaCEP(nome):
     cep = input('{}, digite o CEP: (Exemplo: 13076-001) '.format(nome))
-    print(f"Cep digitado {cep}")
     try:
             resultado = consulta_correios.busca_cep(cep)
             if(type(resultado) is dict):
                 print(resultado['error'])
             else:
                 endereco = resultado[0]
-                print('Endereço: {}, Bairro: {}, Cidade/Estado: {}.'.format(endereco['address'],endereco['neighborhood'],endereco['city/state']))
-               
+                print('Endereço: {}, Bairro: {}, Cidade/Estado: {}.'.format(endereco['address'],endereco['neighborhood'],endereco['city/state'])) 
     except(TooManyRedirects):
             print('Buscando alternativa de cep')
             address = get_address_from_cep(cep, webservice=WebService.VIACEP)
             print('Logradouro: {}, Bairro: {}, Cidade: {}, Estado: {}.'.format(address['logradouro'],address["bairro"],address['cidade'], address["uf"]))
 
-
-            
-
-    
-
-
+#dicionário das reclamações
 dict_reclamacoes = {
     1: [{'data/hora': '09/04/2021 09:55', 'andamento': 'Reclamacao cadastrada', 'status': 'Aberta'},
     {'data/hora': '30/04/2021 10:27', 'andamento': 'Solicitação de intervenção da Ouvidoria', 'status': 'Em tratamento'}],
@@ -87,6 +91,25 @@ def consultaReclamacao(nome):
     else:
         print('Reclamação não encontrada.')
 
+url = urlopen("https://www.correios.com.br/acesso-a-informacao/perguntas-frequentes") 
+html = BeautifulSoup(url.read(),"html.parser")
+#dicionario com as respostas das perguntas frequentes
+dict_perguntasfrequentes = {x+1: getResposta(getRespostas(html),x) for x in range(20)}
+def consultaFrequentes():
+    #Mostra as perguntas
+    print("Perguntas Frequentes:")
+    for i in range(20):
+        print(getPergunta(getPerguntas(html),i))
+    
+    while True:
+        try:
+            print('\n')
+            pergunta = int(input('Digite o número da pergunta ou acione CTRL+c para voltar ao menu anterior: '))
+            print(dict_perguntasfrequentes[pergunta])
+        except(KeyboardInterrupt, EOFError, SystemExit):
+            os.system('cls||clear')
+            break
+    
 def iniciaChatbot(nome):
     #cria bot Carteirin
     bot = ChatBot(
@@ -131,7 +154,7 @@ def iniciaChatbot(nome):
         'Brasília, Brasil.',
         'Quem é presidente do Brasil?',
         'Jair Messias Bolsonaro',
-        'conte história sobre os correios',
+        'Conte história sobre os correios',
         'Os Correios tiveram sua origem no Brasil em 25 de janeiro de 1663,\n com a criação do Correio-Mor\n no Rio de Janeiro, embora a capital da colônia fosse então Salvador. Em 1931 o decreto 20 859, de 26 de dezembro de 1931\n funde a Diretoria Geral\n dos Correios com a Repartição Geral dos Telégrafos e cria o Departamento dos Correios e Telégrafos.\n A ECT foi criada a 20 de\n março de 1969, como empresa pública vinculada ao\n Ministério das Comunicações mediante a transformação da autarquia\n federal que era, então, Departamento de Correios e Telégrafos (DCT). A mudança não representou\n apenas uma troca de sigla, foi seguida por uma transformação profunda\n no modelo de gestão do setor postal brasileiro, tornando-o mais eficiente',
         'conte uma piada',
         'Se o PAC-MAN corresse como o Sonic, o jogo se chamaria SEDEX-MAN.',
@@ -141,17 +164,10 @@ def iniciaChatbot(nome):
         'Como Correio-Mor: 25 de janeiro de 1663 (358 anos) e como Empresa de Correios e Telégrafos: 20 de março de 1969 (52 anos)',
         'Qual tipo de empresa os correios é?',
         'Empresa Brasileira de Correios e Telégrafos',
-        'privatizar os correios',
-        'Os Correios é do povo e nunca deverá ser privatizado. Lutaremos até o fim para manter como empresa estatal',
-        'cep',
-        'Mas {}, você pode consultar o CEP no menu anterior na opção 2.'.format(nome),
-        'Fazer reclamação',
-        'Mas {}, você pode consultar o status da reclamação menu anterior na opção 3.'.format(nome)
-        
-        
-        ]
-    url = urlopen("https://www.correios.com.br/acesso-a-informacao/perguntas-frequentes") 
+        'Privatizar os correios',
+        'Os Correios é do povo e nunca deverá ser privatizado. Lutaremos até o fim para manter como empresa estatal']
 
+    url = urlopen("https://www.correios.com.br/acesso-a-informacao/perguntas-frequentes") 
     html = BeautifulSoup(url.read(),"html.parser")
 
     for i in range(20):
@@ -163,55 +179,29 @@ def iniciaChatbot(nome):
         listaConversa.append(getPergunta(getPerguntas(html),i))
         listaConversa.append(str(i + 1))
         listaConversa.append(getResposta(getRespostas(html),i))
-
-
-    
-    
-    
-
     
     conversa.train(listaConversa)
-    
-
-
-
     
     print('Chat iniciado.')
     print('''Carteirin: Olá, tudo bem? Meu nome é Carteirin.
     Sou seu amigo e te ajudarei a resolver seu(s) problema(s) com os Correios - Empresa Brasileira de Correios e Telégrafos do Brasil.
     Qual é seu problema?
-    (Para sair acione Ctrl+c.)''')
-    #Mostra as perguntas
-    print("Perguntas Frequentes:")
-    for i in range(20):
-        print(getPergunta(getPerguntas(html),i))
-
+    (Para voltar ao menu anterior acione Ctrl+c.)''')
 
     while True:
         try:
-            entrada = input('Você: ')
-            #pra casa momento que ele digitar menu
-            if(entrada == "menu"):
-                for i in soPerguntas(getPerguntas(html)):
-                    print(i)
-                continue
-
-            resposta = bot.get_response(entrada)
-            if float(resposta.confidence) > 0.5: #grau de confiança da resposta for menor que 0.2
+            resposta = bot.get_response(input('Você: '))
+            if float(resposta.confidence) > 0.2: #grau de confiança da resposta for maior que 0.2
                 print('Carteirin:', resposta)
             else:
                 print('Desculpa. Não entendi. Pode ser mais claro, por favor?')
         except(KeyboardInterrupt, EOFError, SystemExit):
             print('Chat finalizado.')
+            os.system('cls||clear')
             break
-
-url = urlopen("https://www.correios.com.br/acesso-a-informacao/perguntas-frequentes") 
-
-html = BeautifulSoup(url.read(),"html.parser")
 
 print('Bem vindo ao atendimento dos Correios!')
 nome = input('Qual seu nome? ')
-#email = input('Digite seu email: ')
 print('\n')
 
 while True:
@@ -219,14 +209,15 @@ while True:
     print('[1] Consultar status de encomenda.')
     print('[2] Consultar CEP.')
     print('[3] Consulta status de reclamação.')
-    print('[4] Falar com atendente virtual.')
+    print('[4] Perguntas frequentes.')
+    print('[5] Falar com atendente virtual.')
     print('[0] Sair do sistema.')
     
     resposta = int(input('Digite opção do menu: '))
     if (resposta == 0):
         print('Fim de atendimento.')
         break
-    if (resposta > 0 and resposta <= 4):
+    if (resposta > 0 and resposta <= 5):
         processarMenu(resposta, nome)
     else:
         print ('Opção de menu inválida.')
